@@ -60,12 +60,20 @@ func main() {
 		episodes := res.Episodes.Episodes
 		latestEpisode := episodes[len(episodes) - 1]
 
-		val, err := rdb.Get(ctx, "latest:id").Result()
-		if err != nil {
-			log.Fatalf("get latest value failed")
+		idExists, err := rdb.Exists(ctx, "latest:id").Result()
+		shouldUpdate := false
+		if (idExists != 0) {
+			dbVal, err := rdb.Get(ctx, "latest:id").Result()
+			if err != nil {
+				log.Fatalf("get latest value failed")
+			}
+			shouldUpdate = dbVal != latestEpisode.ID.String()
+		} else {
+			shouldUpdate = true
 		}
 
-		if (val != latestEpisode.ID.String()) {
+
+		if (shouldUpdate) {
 			rdb.Set(ctx, "latest:id", latestEpisode.ID.String(), 0)
 			HttpPost(os.Getenv("DISCORD_WEBHOOK_URL"), latestEpisode.Name, latestEpisode.ID.String())
 		}
