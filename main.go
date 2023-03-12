@@ -54,7 +54,7 @@ func main() {
 		log.Printf("get show start")
 		res, err := client.GetShow(ctx, spotify.ID(os.Getenv("SPOTIFY_SHOW_ID")), spotify.Market("JP"))
 		if err != nil {
-			log.Fatalf(err)
+			log.Fatalf("SPOTIFY request failed")
 		}
 
 		episodes := res.Episodes.Episodes
@@ -62,7 +62,7 @@ func main() {
 
 		val, err := rdb.Get(ctx, "latest:id").Result()
 		if err != nil {
-			log.Fatalf(err)
+			log.Fatalf("get latest value failed")
 		}
 
 		if (val != latestEpisode.ID.String()) {
