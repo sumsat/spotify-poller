@@ -50,36 +50,33 @@ func main() {
 	httpClient := spotifyauth.New().Client(ctx, token)
 	client := spotify.New(httpClient)
 
-	for {
-		log.Printf("get show start")
-		res, err := client.GetShow(ctx, spotify.ID(os.Getenv("SPOTIFY_SHOW_ID")), spotify.Market("JP"))
-		if err != nil {
-			log.Fatalf("SPOTIFY request failed")
-		}
-
-		episodes := res.Episodes.Episodes
-		latestEpisode := episodes[len(episodes) - 1]
-
-		idExists, err := rdb.Exists(ctx, "latest:id").Result()
-		shouldUpdate := false
-		if (idExists != 0) {
-			dbVal, err := rdb.Get(ctx, "latest:id").Result()
-			if err != nil {
-				log.Fatalf("get latest value failed")
-			}
-			shouldUpdate = dbVal != latestEpisode.ID.String()
-		} else {
-			shouldUpdate = true
-		}
-
-
-		if (shouldUpdate) {
-			rdb.Set(ctx, "latest:id", latestEpisode.ID.String(), 0)
-			HttpPost(os.Getenv("DISCORD_WEBHOOK_URL"), latestEpisode.Name, latestEpisode.ID.String())
-		}
-		log.Printf("end")
-		time.Sleep(5 * 60 * time.Second)
+	log.Printf("get show start")
+	res, err := client.GetShow(ctx, spotify.ID(os.Getenv("SPOTIFY_SHOW_ID")), spotify.Market("JP"))
+	if err != nil {
+		log.Fatalf("SPOTIFY request failed")
 	}
+
+	episodes := res.Episodes.Episodes
+	latestEpisode := episodes[len(episodes) - 1]
+
+	idExists, err := rdb.Exists(ctx, "latest:id").Result()
+	shouldUpdate := false
+	if (idExists != 0) {
+		dbVal, err := rdb.Get(ctx, "latest:id").Result()
+		if err != nil {
+			log.Fatalf("get latest value failed")
+		}
+		shouldUpdate = dbVal != latestEpisode.ID.String()
+	} else {
+		shouldUpdate = true
+	}
+
+
+	if (shouldUpdate) {
+		rdb.Set(ctx, "latest:id", latestEpisode.ID.String(), 0)
+		HttpPost(os.Getenv("DISCORD_WEBHOOK_URL"), latestEpisode.Name, latestEpisode.ID.String())
+	}
+	log.Printf("end")
 
 }
 
