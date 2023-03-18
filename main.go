@@ -6,11 +6,12 @@ import (
 	"os"
 	"net/http"
 	"bytes"
+	"database/sql"
 
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
 
 	"github.com/joho/godotenv"
-	"github.com/redis/go-redis/v9"
+	_ "github.com/lib/pq"
 	"github.com/zmb3/spotify/v2"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -25,12 +26,11 @@ func main() {
 	}
 
 	log.Printf("end")
-	log.Printf("redis client start")
-	rdb := redis.NewClient(&redis.Options{
-		Addr:	 os.Getenv("REDIS_URL"),
-		Password: "", // no password set
-		DB:	   0,  // use default DB
-	})
+	log.Printf("postgres client start")
+	db, err := sql.Open("postgres", os.Getenv("POSTGRES_URL"))
+	if err != nil {
+		log.Fatal("Error postgres")
+	}
 	log.Printf("end")
 
 	log.Printf("spotify client start")
@@ -58,22 +58,27 @@ func main() {
 	episodes := res.Episodes.Episodes
 	latestEpisode := episodes[len(episodes) - 1]
 
-	idExists, err := rdb.Exists(ctx, "latest:id").Result()
-	shouldUpdate := false
-	if (idExists != 0) {
-		dbVal, err := rdb.Get(ctx, "latest:id").Result()
-		if err != nil {
-			log.Fatalf("get latest value failed")
-		}
-		shouldUpdate = dbVal != latestEpisode.ID.String()
-	} else {
-		shouldUpdate = true
+	rows, err := db.Query("SELECT latest_id FROM latest_id WHERE id = 0")
+	defer rows.Close()
+	if err != nil {
+		log.Fatalf("get failed")
 	}
 
+	var ids []string
+	var tmp string
+	for rows.Next() {
+		rows.Scan(&tmp)
+		ids = append(ids, tmp)
+	}
 
-	if (shouldUpdate) {
-		rdb.Set(ctx, "latest:id", latestEpisode.ID.String(), 0)
-		HttpPost(os.Getenv("DISCORD_WEBHOOK_URL"), latestEpisode.Name, latestEpisode.ID.String())
+	if (ids[0] != latestEpisode.ID.String()) {
+		_, err = db.Exec("UPDATE latest_id SET latest_id = $1 where id = 0", latestEpisode.ID.String())
+		log.Printf(latestEpisode.ID.String())
+		if err != nil {
+			log.Fatalf("instert failed")
+		} else {
+			HttpPost(os.Getenv("DISCORD_WEBHOOK_URL"), latestEpisode.Name, latestEpisode.ID.String())
+		}
 	}
 	log.Printf("end")
 
