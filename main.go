@@ -27,7 +27,7 @@ func main() {
 
 	log.Printf("end")
 	log.Printf("postgres client start")
-	db, err := sql.Open("postgres", os.Getenv("POSTGRES_URL"))
+	db, err := sql.Open("latest_id_user", os.Getenv("POSTGRES_URL"))
 	if err != nil {
 		log.Fatal("Error postgres")
 	}
